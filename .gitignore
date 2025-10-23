@@ -1,0 +1,5 @@
+*
+!.gitignore
+!*.enc
+!docs
+!docs/**

@@ -1,0 +1,10 @@
+= CICIDS2017
+
+== references
+
+https://www.unb.ca/cic/datasets/ids-2017.html[UNB original]
+
+== detail
+
+
+
