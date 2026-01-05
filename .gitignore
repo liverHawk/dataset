@@ -3,3 +3,6 @@
 !*.enc
 !docs
 !docs/**
+!project
+!project/**
+project/cleaned
