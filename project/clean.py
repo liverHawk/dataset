@@ -11,10 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 def clean_data(df: pl.DataFrame) -> pl.DataFrame:
-    # 1. Delete unwanted columns
+    # 1. strip whitespace from all columns
+    logger.info("Stripping whitespace from all columns")
+    df = df.rename({ col: col.strip() for col in df.columns })
+
+    # 2. Delete unwanted columns
     logger.info("Deleting unwanted columns")
     delete_columns = [
-        "id", "Flow ID", "ICMP Code", "ICMP Type", "Attempted Category"
+        "id", "Flow ID", "ICMP Code", "ICMP Type", "Attempted Category",
+        "Unnamed: 0", ""
     ]
     delete_columns = [col for col in delete_columns if col in df.columns]
     df = df.drop(delete_columns)
@@ -24,8 +29,10 @@ def clean_data(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def save_data_info(df: pl.DataFrame, save_path: Path):
+def save_data_info(files: list[Path], save_path: Path):
     logger.info("Saving column information")
+    unified_schema = get_schema(files)
+    df = pl.read_csv(files[0], schema=unified_schema)
     with open(save_path / "column_info.txt", "w") as f:
         f.write("Column Name,Data Type\n")
         for col, dtype in zip(df.columns, df.dtypes):
@@ -34,7 +41,12 @@ def save_data_info(df: pl.DataFrame, save_path: Path):
 
     if "Label" not in df.columns:
         logger.warning("Label column not found. Adding dummy column")
-        raise ValueError("Label column not found")
+        return
+    dfs = []
+    for file in files:
+        df = pl.read_csv(file, columns=["Label"])
+        dfs.append(df)
+    df = pl.concat(dfs)
     logger.info("Saving label information")
     label_counts = df.group_by("Label").agg(pl.len().alias("count")).sort("count", descending=True)
 
@@ -73,10 +85,15 @@ def main():
         save_base_path = Path('./cleaned') / file.parent.name
         save_base_path.mkdir(parents=True, exist_ok=True)
         df.write_csv(save_base_path / file_name)
+    
+    logger.info("Saving data info for original dataset")
+    save_data_info(files, path)
 
-    df = pl.read_csv(files[0], schema=unified_schema)
-    save_data_info(df, path)
-
+    logger.info("Saving data info for cleaned dataset")
+    new_path = Path('./cleaned') / args.dataset
+    files = list(new_path.glob('*.csv'))
+    save_data_info(files, new_path)
+    logger.info("Done")
 
 if __name__ == "__main__":
     main()

@@ -7,8 +7,12 @@ logger = logging.getLogger(__name__)
 def get_schema(files):
     unified_schema = {}
     for file in files:
-        current_schema = pl.read_csv(file, n_rows=0).schema
+        logger.info(f"Getting schema for {file}")
+        current_schema = pl.read_csv(file, n_rows=0, schema_overrides={ "SimillarHTTP": pl.Utf8 }).schema
         for col, dtype in current_schema.items():
+            if col =="SimillarHTTP":
+                unified_schema[col] = pl.Utf8
+                continue
             if col not in unified_schema:
                 unified_schema[col] = dtype
             else:
@@ -20,7 +24,7 @@ def get_schema(files):
 
 
 def prepare_data(df: pl.DataFrame) -> pl.DataFrame:
-    # 2. replace int and -inf to nan
+    # 3. replace int and -inf to nan
     logger.info("Replacing int and -inf to nan")
     numeric_columns = [
         col for col, dtype in zip(df.columns, df.dtypes) if dtype.is_numeric()
@@ -34,9 +38,10 @@ def prepare_data(df: pl.DataFrame) -> pl.DataFrame:
         )
     df = df.drop_nulls()
 
-    # 3. drop rows which have negative values
+    # 4. drop rows which have negative values
     logger.info("Dropping rows which have negative values")
     for col in numeric_columns:
         if col in df.columns:
             df = df.filter(pl.col(col) >= 0)
+
     return df
