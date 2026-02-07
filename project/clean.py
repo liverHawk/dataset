@@ -3,9 +3,13 @@ from pathlib import Path
 import logging
 import argparse
 import polars as pl
+import os
+import json
+import coloredlogs
 
 from lib.data import get_schema, prepare_data
 
+coloredlogs.install(level=logging.INFO)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -81,10 +85,20 @@ def main():
             logger.error(f"Error cleaning data for {file}: {e}")
             continue
 
+        if os.path.exists(f"metadata/{args.dataset}.json"):
+            with open(f"metadata/{args.dataset}.json", "r") as f:
+                metadata = json.load(f)
+            if metadata.get("column_mapping"):
+                mapping = metadata["column_mapping"]
+                logger.info(f"Renaming columns according to mapping")
+                df = df.rename(mapping)
+
         file_name = file.stem + "_cleaned.csv"
         save_base_path = Path('./cleaned') / file.parent.name
         save_base_path.mkdir(parents=True, exist_ok=True)
         df.write_csv(save_base_path / file_name)
+    
+
     
     logger.info("Saving data info for original dataset")
     save_data_info(files, path)
